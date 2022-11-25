@@ -2,7 +2,24 @@
   <div
     id="app"
   >
-    <base-mention />
+    <div
+      class="
+        border w-[400px]
+        h-[700px]
+        flex flex-col gap-2
+        p-2
+      "
+    >
+      <div class="grow p-2 border">
+        text
+      </div>
+
+      <base-mention />
+
+      <button class="bg-blue-500 h-[50px] text-white">
+        Send
+      </button>
+    </div>
   </div>
 </template>
 
@@ -12,14 +29,3 @@ export default {
   name: 'App'
 }
 </script>
-
-<style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-</style>
