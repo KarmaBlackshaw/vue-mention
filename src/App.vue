@@ -14,7 +14,7 @@
         text
       </div>
 
-      <base-mention />
+      <base-mention class="max-h-[200px] overflow-auto" />
 
       <button class="bg-blue-500 h-[50px] text-white">
         Send

@@ -1,7 +1,7 @@
 <template>
   <div>
     <vue-editor
-      id="notes-vue-editor"
+      ref="mention-area"
       v-model="vModelProxy"
       placeholder="Type a message..."
       :editor-options="{
@@ -11,11 +11,28 @@
       }"
       @input="onInput"
     />
+
+    <div
+      ref="mention-card"
+      class="
+        mention-card
+        border
+        p-2
+        bg-neutral-800
+        text-white rounded
+        shadow
+      "
+    >
+      hey
+    </div>
   </div>
 </template>
 
 <script>
+// libs
 import { VueEditor } from 'vue2-editor'
+import { createPopper } from '@popperjs/core'
+import _ from 'lodash'
 
 const trimHtmlTags = str => str && String(str).replace(/<.+?>/g, '')
 
@@ -50,6 +67,7 @@ export default {
 
   methods: {
     onInput (text) {
+      const quill = this.$refs['mention-area'].quill
       const nonHtmlText = trimHtmlTags(text)
 
       const lastKeyIndex = nonHtmlText.lastIndexOf('@')
@@ -59,14 +77,37 @@ export default {
         ? nonHtmlText.substring(lastKeyIndex + 1, lastTextIndex)
         : ''
 
-      this.searchString = (/\s/gi).test(mention)
+      const searchString = (/\s/gi).test(mention)
         ? ''
         : mention
+
+      const lastEl = _.last(quill.root.childNodes)
+
+      const selection = quill.getSelection()
+      const bounds = quill.getBounds(selection.index)
+
+      createPopper(lastEl, this.$refs['mention-card'], {
+        placement: 'top-start',
+        modifiers: [
+          {
+            name: 'offset',
+            options: {
+              offset: [bounds.left - 10]
+            }
+          }
+        ]
+
+      })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+#mention-card {
+}
 
+#mention-card[data-show] {
+  display: block;
+}
 </style>
