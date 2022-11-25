@@ -64,7 +64,8 @@ export default {
   data() {
     return {
       searchString: '',
-      popperInstance: null
+      popperInstance: null,
+      showPopper: false
     }
   },
 
@@ -116,22 +117,15 @@ export default {
         if (this.popperInstance) {
           await this.popperInstance.setOptions(options)
         } else {
-          this.popperInstance = createPopper(lastEl, this.$refs['mention-card'], options)
+          this.popperInstance = await createPopper(lastEl, this.$refs['mention-card'], options)
         }
+        this.showPopper = true
       } else if (this.popperInstance) {
         this.popperInstance.destroy()
         this.popperInstance = null
+        this.showPopper = false
       }
     }
   }
 }
 </script>
-
-<style lang="scss" scoped>
-#mention-card {
-}
-
-#mention-card[data-show] {
-  display: block;
-}
-</style>

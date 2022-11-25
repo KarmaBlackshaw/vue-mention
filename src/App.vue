@@ -5,7 +5,6 @@
     <div
       class="
         border w-[400px]
-        h-[700px]
         flex flex-col gap-2
         p-2
       "
@@ -14,7 +13,7 @@
         text
       </div>
 
-      <base-mention class="max-h-[200px] overflow-auto" />
+      <base-mention class="overflow-auto" />
 
       <button class="bg-blue-500 h-[50px] text-white">
         Send
