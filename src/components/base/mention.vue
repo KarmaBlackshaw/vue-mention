@@ -17,13 +17,26 @@
       class="
         mention-card
         border
-        p-2
         bg-neutral-800
-        text-white rounded
+        rounded
         shadow
+        w-[200px]
       "
     >
-      hey
+      <ul class="divide-y divide-neutral-700">
+        <li
+          v-for="i in 5"
+          :key="i"
+          class="
+            p-2
+            text-neutral-300
+            hover:bg-neutral-700
+            transition
+          "
+        >
+          Ernie Jeash
+        </li>
+      </ul>
     </div>
   </div>
 </template>
@@ -50,7 +63,8 @@ export default {
 
   data() {
     return {
-      searchString: ''
+      searchString: '',
+      popperInstance: null
     }
   },
 
@@ -66,7 +80,7 @@ export default {
   },
 
   methods: {
-    onInput (text) {
+    async onInput (text) {
       const quill = this.$refs['mention-area'].quill
       const nonHtmlText = trimHtmlTags(text)
 
@@ -86,18 +100,28 @@ export default {
       const selection = quill.getSelection()
       const bounds = quill.getBounds(selection.index)
 
-      createPopper(lastEl, this.$refs['mention-card'], {
-        placement: 'top-start',
-        modifiers: [
-          {
-            name: 'offset',
-            options: {
-              offset: [bounds.left - 10]
+      if (searchString) {
+        const options = {
+          placement: 'top',
+          modifiers: [
+            {
+              name: 'offset',
+              options: {
+                offset: [bounds.left - 100]
+              }
             }
-          }
-        ]
+          ]
+        }
 
-      })
+        if (this.popperInstance) {
+          await this.popperInstance.setOptions(options)
+        } else {
+          this.popperInstance = createPopper(lastEl, this.$refs['mention-card'], options)
+        }
+      } else if (this.popperInstance) {
+        this.popperInstance.destroy()
+        this.popperInstance = null
+      }
     }
   }
 }
