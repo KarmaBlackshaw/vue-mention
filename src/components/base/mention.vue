@@ -17,6 +17,8 @@
 <script>
 import { VueEditor } from 'vue2-editor'
 
+const trimHtmlTags = str => str && String(str).replace(/<.+?>/g, '')
+
 export default {
   components: {
     VueEditor
@@ -26,6 +28,12 @@ export default {
     value: {
       type: String,
       default: ''
+    }
+  },
+
+  data() {
+    return {
+      searchString: ''
     }
   },
 
@@ -41,8 +49,19 @@ export default {
   },
 
   methods: {
-    onInput() {
-      console.log('asdf')
+    onInput (text) {
+      const nonHtmlText = trimHtmlTags(text)
+
+      const lastKeyIndex = nonHtmlText.lastIndexOf('@')
+      const lastTextIndex = nonHtmlText.length
+
+      const mention = lastKeyIndex > -1
+        ? nonHtmlText.substring(lastKeyIndex + 1, lastTextIndex)
+        : ''
+
+      this.searchString = (/\s/gi).test(mention)
+        ? ''
+        : mention
     }
   }
 }
