@@ -18,6 +18,7 @@
         shadow
         w-[200px]
       "
+      :class="[popper ? 'block' : 'hidden']"
     >
       <ul class="divide-y divide-neutral-700">
         <li
@@ -67,8 +68,7 @@ export default {
 
   data() {
     return {
-      popperInstance: null,
-      showPopper: false,
+      popper: null,
       quill: null
     }
   },
@@ -121,7 +121,7 @@ export default {
   },
 
   methods: {
-    async onInput (text) {
+    onInput (text) {
       const quill = this.$refs['mention-area'].quill
       const nonHtmlText = trimHtmlTags(text)
 
@@ -141,29 +141,21 @@ export default {
       const selection = quill.getSelection()
       const bounds = quill.getBounds(selection.index)
 
-      if (searchString) {
-        const options = {
-          placement: 'top',
+      if (this.popper && !searchString) {
+        this.popper.destroy()
+        this.popper = null
+      } else if (!this.popper && searchString) {
+        this.popper = createPopper(lastEl, this.$refs['mention-card'], {
+          placement: 'auto-start',
           modifiers: [
             {
               name: 'offset',
               options: {
-                offset: [bounds.left - 100]
+                offset: [bounds.left]
               }
             }
           ]
-        }
-
-        if (this.popperInstance) {
-          await this.popperInstance.setOptions(options)
-        } else {
-          this.popperInstance = await createPopper(lastEl, this.$refs['mention-card'], options)
-        }
-        this.showPopper = true
-      } else if (this.popperInstance) {
-        this.popperInstance.destroy()
-        this.popperInstance = null
-        this.showPopper = false
+        })
       }
     }
   }
