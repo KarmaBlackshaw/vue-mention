@@ -18,7 +18,6 @@
         shadow
         w-[200px]
       "
-      :class="[popper ? 'block' : 'hidden']"
     >
       <ul class="divide-y divide-neutral-700">
         <li
@@ -142,11 +141,12 @@ export default {
       const bounds = quill.getBounds(selection.index)
 
       if (this.popper && !searchString) {
+        this.$refs['mention-card'].removeAttribute('data-show')
         this.popper.destroy()
         this.popper = null
       } else if (!this.popper && searchString) {
         this.popper = createPopper(lastEl, this.$refs['mention-card'], {
-          placement: 'auto-start',
+          placement: 'top-start',
           modifiers: [
             {
               name: 'offset',
@@ -156,8 +156,20 @@ export default {
             }
           ]
         })
+
+        this.$refs['mention-card'].setAttribute('data-show', '')
       }
     }
   }
 }
 </script>
+
+<style lang="scss" scoped>
+.mention-card {
+  display: none;
+}
+
+.mention-card[data-show] {
+display: block;
+}
+</style>
