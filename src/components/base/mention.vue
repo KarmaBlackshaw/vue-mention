@@ -4,11 +4,7 @@
       ref="mention-area"
       v-model="vModelProxy"
       placeholder="Type a message..."
-      :editor-options="{
-        modules: {
-          toolbar: false
-        }
-      }"
+      :editor-options="editorOptions"
       @input="onInput"
     />
 
@@ -49,6 +45,14 @@ import _ from 'lodash'
 
 const trimHtmlTags = str => str && String(str).replace(/<.+?>/g, '')
 
+const getElement = async (base, path) => {
+  while (!_.get(base, path)) {
+    await new Promise(resolve => requestAnimationFrame(resolve))
+  }
+
+  return _.get(base, path)
+}
+
 export default {
   components: {
     VueEditor
@@ -63,9 +67,9 @@ export default {
 
   data() {
     return {
-      searchString: '',
       popperInstance: null,
-      showPopper: false
+      showPopper: false,
+      quill: null
     }
   },
 
@@ -77,7 +81,43 @@ export default {
       set (val) {
         return this.$emit('input', val)
       }
+    },
+
+    editorOptions () {
+      return {
+        modules: {
+          toolbar: false,
+          keyboard: {
+            bindings: {
+              shift_enter: {
+                key: 13,
+                shiftKey: true,
+                handler: range => {
+                  /**
+                   * Insert new line
+                   */
+                  this.quill.editor.insertText(range.index, '\n')
+
+                  /**
+                   * Move cursor at the end
+                   */
+                  this.quill.setSelection(this.quill.getSelection().index + 1, 0)
+                }
+              },
+              enter: {
+                key: 13,
+                handler: () => { // submit form }
+                }
+              }
+            }
+          }
+        }
+      }
     }
+  },
+
+  async mounted () {
+    this.quill = await getElement(this.$refs, ['mention-area', 'quill'])
   },
 
   methods: {
