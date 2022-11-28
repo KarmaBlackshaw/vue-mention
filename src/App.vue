@@ -13,7 +13,10 @@
         text
       </div>
 
-      <base-mention class="overflow-auto" />
+      <base-mention
+        v-model="test"
+        class="overflow-auto"
+      />
 
       <button class="bg-blue-500 h-[50px] text-white">
         Send
@@ -25,6 +28,12 @@
 <script>
 
 export default {
-  name: 'App'
+  name: 'App',
+
+  data() {
+    return {
+      test: ''
+    }
+  }
 }
 </script>

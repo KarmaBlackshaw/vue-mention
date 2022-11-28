@@ -2,7 +2,7 @@
   <div>
     <vue-editor
       ref="mention-area"
-      v-model="vModelProxy"
+      v-model="text"
       placeholder="Type a message..."
       :editor-options="editorOptions"
       @input="onInput"
@@ -39,7 +39,10 @@
 
 <script>
 // libs
-import { VueEditor } from 'vue2-editor'
+
+// check
+// https://github.com/quill-mention/quill-mention/blob/master/src/quill.mention.js
+import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
 
@@ -52,6 +55,39 @@ const getElement = async (base, path) => {
 
   return _.get(base, path)
 }
+
+const Inline = Quill.import('blots/inline')
+
+const Parchment = Quill.import('parchment')
+
+const LinkClass = new Parchment.Attributor.Class('link', 'ql-link', {
+  scope: Parchment.Scope.INLINE,
+  whitelist: ['btn']
+})
+
+class InternalLink extends Inline {
+  static create(value) {
+    const node = super.create(value)
+    value = '/test'
+    node.setAttribute('href', value)
+    return node
+  }
+
+  static formats(domNode) {
+    return domNode.getAttribute('href')
+  }
+}
+
+InternalLink.blotName = 'internal_link'
+InternalLink.className = 'btn'
+InternalLink.tagName = 'A'
+
+Quill.register({
+  'attributors/class/link': LinkClass,
+  'formats/internal_link': InternalLink
+})
+
+const MENTION_PREFIX = '@'
 
 export default {
   components: {
@@ -68,12 +104,13 @@ export default {
   data() {
     return {
       popper: null,
-      quill: null
+      quill: null,
+      searchString: null
     }
   },
 
   computed: {
-    vModelProxy: {
+    text: {
       get () {
         return this.value
       },
@@ -105,7 +142,22 @@ export default {
               },
               enter: {
                 key: 13,
-                handler: () => { // submit form }
+                handler: () => {
+                  if (!this.searchString) {
+                    return
+                  }
+
+                  const str = '<a class="p-1 bg-red-500 inline">Hello World</a>'
+
+                  console.log(this.text)
+                  console.log(`${MENTION_PREFIX}${this.searchString}`)
+                  const test = this.text
+                    .replace(new RegExp(`${MENTION_PREFIX}${this.searchString}`, 'g'), str)
+
+                  // this.quill.dangerouslyPasteHTML(test, 'user')
+                  console.log(test)
+                  console.log(this.quill.root.innerHTML = test)
+
                 }
               }
             }
@@ -131,8 +183,8 @@ export default {
         ? nonHtmlText.substring(lastKeyIndex + 1, lastTextIndex)
         : ''
 
-      const searchString = (/\s/gi).test(mention)
-        ? ''
+      this.searchString = (/\s/gi).test(mention)
+        ? null
         : mention
 
       const lastEl = _.last(quill.root.childNodes)
@@ -140,11 +192,12 @@ export default {
       const selection = quill.getSelection()
       const bounds = quill.getBounds(selection.index)
 
-      if (this.popper && !searchString) {
+      if (this.popper && !this.searchString) {
         this.$refs['mention-card'].removeAttribute('data-show')
         this.popper.destroy()
         this.popper = null
-      } else if (!this.popper && searchString) {
+
+      } else if (!this.popper && this.searchString) {
         this.popper = createPopper(lastEl, this.$refs['mention-card'], {
           placement: 'top-start',
           modifiers: [
