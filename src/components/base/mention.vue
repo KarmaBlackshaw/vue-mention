@@ -8,32 +8,44 @@
       @input="onInput"
     />
 
-    <div
+    <ul
       ref="mention-card"
-      class="
-        mention-card
-        border
-        bg-neutral-800
-        rounded
-        shadow
-        w-[200px]
-      "
+      class="mention-card w-[424px] max-h-[270px] overflow-auto divide-y shadow-2xl bg-white "
     >
-      <ul class="divide-y divide-neutral-700">
-        <li
-          v-for="(item, index) in 5"
-          :key="index"
-          class="
-            p-2
-            text-neutral-300
-            hover:bg-neutral-700
-            transition
-          "
-        >
-          Ernie Jeash
-        </li>
-      </ul>
-    </div>
+      <li
+        v-for="k in 20"
+        :key="k"
+      >
+        <details>
+          <summary class="list-none select-none h-[46px] flex items-center px-3 justify-between">
+            <h1>Accounting - Invoicing</h1>
+
+            <icon-mdi:chevron-down />
+          </summary>
+
+          <ul class="max-h-[224px] overflow-auto border-t">
+            <li
+              v-for="i in 20"
+              :key="i"
+              class="px-3 py-2 flex items-center flex-start gap-3"
+            >
+              <img
+                src="https://images.pexels.com/photos/2904619/pexels-photo-2904619.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
+                alt=""
+                class="h-[32px] w-[32px] rounded-full"
+              >
+
+              <div class="text-sm">
+                <p>Aaron Carter</p>
+                <p class="text-neutral-400">
+                  Accountants - Invoicing - Chicago
+                </p>
+              </div>
+            </li>
+          </ul>
+        </details>
+      </li>
+    </ul>
   </div>
 </template>
 
@@ -63,7 +75,7 @@ class EmbedMention extends Embed {
   static create(value) {
     const node = super.create()
 
-    const classes = 'px-1 mx-[2px] py-[2px] bg-blue-500 rounded text-white'
+    const classes = 'mention-chip bg-blue-500/10 text-blue-500 rounded text-white'
 
     classes.split(' ').forEach(cls => node.classList.add(cls))
     node.innerText = value
@@ -134,9 +146,11 @@ export default {
                   /**
                    * Remove raw mention
                    */
+                  const totalMentions = this.quill.getContents().ops.filter(x => x.insert?.mention).length
+                  const startIndex = this.searchString.startIndex + totalMentions
                   this.quill.deleteText(
-                    this.searchString.startIndex,
-                    (this.searchString.endIndex - this.searchString.startIndex) + 1
+                    startIndex,
+                    ((this.searchString.endIndex + totalMentions) - startIndex) + 1
                   )
 
                   /**
@@ -144,14 +158,10 @@ export default {
                    */
                   const range = this.quill.getSelection()
                   if (range) {
-                    this.quill.insertEmbed(range.index, 'mention', 'hello world')
-
+                    this.quill.insertEmbed(range.index, 'mention', 'sample-text')
+                    this.quill.insertText(range.index + 1, ' ', 'silent')
+                    this.quill.setSelection(range.index + 2, 0)
                   }
-
-                  /**
-                   * Move cursor to the end
-                   */
-                  this.quill.setSelection(this.quill.getSelection().index + 1, 0)
                 }
               }
             }
@@ -197,7 +207,6 @@ export default {
         this.$refs['mention-card'].removeAttribute('data-show')
         this.popper.destroy()
         this.popper = null
-
       } else if (!this.popper && this.searchString) {
         this.popper = createPopper(lastEl, this.$refs['mention-card'], {
           placement: 'top-start',
@@ -221,9 +230,11 @@ export default {
 <style lang="scss" scoped>
 .mention-card {
   display: none;
+box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .mention-card[data-show] {
 display: block;
 }
+
 </style>
