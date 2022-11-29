@@ -46,8 +46,6 @@ import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
 
-const trimHtmlTags = str => str && String(str).replace(/<.+?>/g, '')
-
 const getElement = async (base, path) => {
   while (!_.get(base, path)) {
     await new Promise(resolve => requestAnimationFrame(resolve))
@@ -59,13 +57,13 @@ const getElement = async (base, path) => {
 const Embed = Quill.import('blots/embed')
 
 class EmbedMention extends Embed {
-  static blotName = 'embedMention'
+  static blotName = 'mention'
   static tagName = 'span'
 
   static create(value) {
     const node = super.create()
 
-    const classes = 'px-1 py-[2px] bg-blue-500 rounded text-white'
+    const classes = 'px-1 mx-[2px] py-[2px] bg-blue-500 rounded text-white'
 
     classes.split(' ').forEach(cls => node.classList.add(cls))
     node.innerText = value
@@ -146,7 +144,8 @@ export default {
                    */
                   const range = this.quill.getSelection()
                   if (range) {
-                    this.quill.insertEmbed(range.index, 'embedMention', 'hello world')
+                    this.quill.insertEmbed(range.index, 'mention', 'hello world')
+
                   }
 
                   /**
@@ -167,29 +166,32 @@ export default {
   },
 
   methods: {
-    onInput (text) {
-      const quill = this.$refs['mention-area'].quill
-      const nonHtmlText = trimHtmlTags(text)
+    onInput () {
+      if (!this.quill) {
+        return
+      }
+
+      const nonHtmlText = this.quill.getText(0, this.quill.getLength())
 
       const lastKeyIndex = nonHtmlText.lastIndexOf('@')
       const lastTextIndex = nonHtmlText.length
 
       const mention = lastKeyIndex > -1
         ? nonHtmlText.substring(lastKeyIndex + 1, lastTextIndex)
-        : ''
+        : null
 
-      this.searchString = (/\s/gi).test(mention) || !mention
-        ? null
-        : {
+      this.searchString = mention && (/[^\s]/g).test(mention)
+        ? {
           text: mention,
           startIndex: lastKeyIndex,
           endIndex: lastTextIndex
         }
+        : null
 
-      const lastEl = _.last(quill.root.childNodes)
+      const lastEl = _.last(this.quill.root.childNodes)
 
-      const selection = quill.getSelection()
-      const bounds = quill.getBounds(selection.index)
+      const selection = this.quill.getSelection()
+      const bounds = this.quill.getBounds(selection.index)
 
       if (this.popper && !this.searchString) {
         this.$refs['mention-card'].removeAttribute('data-show')
