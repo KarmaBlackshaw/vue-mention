@@ -65,7 +65,7 @@ class EmbedMention extends Embed {
   static create(value) {
     const node = super.create()
 
-    const classes = 'mx-1 px-1 py-[2px] bg-blue-500 rounded text-white'
+    const classes = 'px-1 py-[2px] bg-blue-500 rounded text-white'
 
     classes.split(' ').forEach(cls => node.classList.add(cls))
     node.innerText = value
