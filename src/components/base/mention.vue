@@ -21,8 +21,8 @@
     >
       <ul class="divide-y divide-neutral-700">
         <li
-          v-for="i in 5"
-          :key="i"
+          v-for="(item, index) in 5"
+          :key="index"
           class="
             p-2
             text-neutral-300
@@ -56,38 +56,24 @@ const getElement = async (base, path) => {
   return _.get(base, path)
 }
 
-const Inline = Quill.import('blots/inline')
+const Embed = Quill.import('blots/embed')
 
-const Parchment = Quill.import('parchment')
+class EmbedMention extends Embed {
+  static blotName = 'embedMention'
+  static tagName = 'span'
 
-const LinkClass = new Parchment.Attributor.Class('link', 'ql-link', {
-  scope: Parchment.Scope.INLINE,
-  whitelist: ['btn']
-})
-
-class InternalLink extends Inline {
   static create(value) {
-    const node = super.create(value)
-    value = '/test'
-    node.setAttribute('href', value)
-    return node
-  }
+    const node = super.create()
 
-  static formats(domNode) {
-    return domNode.getAttribute('href')
+    const classes = 'mx-1 px-1 py-[2px] bg-blue-500 rounded text-white'
+
+    classes.split(' ').forEach(cls => node.classList.add(cls))
+    node.innerText = value
+    return node
   }
 }
 
-InternalLink.blotName = 'internal_link'
-InternalLink.className = 'btn'
-InternalLink.tagName = 'A'
-
-Quill.register({
-  'attributors/class/link': LinkClass,
-  'formats/internal_link': InternalLink
-})
-
-const MENTION_PREFIX = '@'
+Quill.register(EmbedMention)
 
 export default {
   components: {
@@ -147,17 +133,26 @@ export default {
                     return
                   }
 
-                  const str = '<a class="p-1 bg-red-500 inline">Hello World</a>'
+                  /**
+                   * Remove raw mention
+                   */
+                  this.quill.deleteText(
+                    this.searchString.startIndex,
+                    (this.searchString.endIndex - this.searchString.startIndex) + 1
+                  )
 
-                  console.log(this.text)
-                  console.log(`${MENTION_PREFIX}${this.searchString}`)
-                  const test = this.text
-                    .replace(new RegExp(`${MENTION_PREFIX}${this.searchString}`, 'g'), str)
+                  /**
+                   * Insert mention
+                   */
+                  const range = this.quill.getSelection()
+                  if (range) {
+                    this.quill.insertEmbed(range.index, 'embedMention', 'hello world')
+                  }
 
-                  // this.quill.dangerouslyPasteHTML(test, 'user')
-                  console.log(test)
-                  console.log(this.quill.root.innerHTML = test)
-
+                  /**
+                   * Move cursor to the end
+                   */
+                  this.quill.setSelection(this.quill.getSelection().index + 1, 0)
                 }
               }
             }
@@ -183,9 +178,13 @@ export default {
         ? nonHtmlText.substring(lastKeyIndex + 1, lastTextIndex)
         : ''
 
-      this.searchString = (/\s/gi).test(mention)
+      this.searchString = (/\s/gi).test(mention) || !mention
         ? null
-        : mention
+        : {
+          text: mention,
+          startIndex: lastKeyIndex,
+          endIndex: lastTextIndex
+        }
 
       const lastEl = _.last(quill.root.childNodes)
 
