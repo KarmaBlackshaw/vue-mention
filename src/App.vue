@@ -10,7 +10,7 @@
       "
     >
       <div class="grow p-2 border">
-        text
+        {{ test }}
       </div>
 
       <base-mention

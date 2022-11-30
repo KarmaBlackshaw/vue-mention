@@ -5,7 +5,6 @@
       v-model="text"
       placeholder="Type a message..."
       :editor-options="editorOptions"
-      @input="onInput"
     />
 
     <ul
@@ -58,6 +57,8 @@ import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
 
+import QuillMention from './mention/quill.mention'
+
 const getElement = async (base, path) => {
   while (!_.get(base, path)) {
     await new Promise(resolve => requestAnimationFrame(resolve))
@@ -66,24 +67,7 @@ const getElement = async (base, path) => {
   return _.get(base, path)
 }
 
-const Embed = Quill.import('blots/embed')
-
-class EmbedMention extends Embed {
-  static blotName = 'mention'
-  static tagName = 'span'
-
-  static create(value) {
-    const node = super.create()
-
-    const classes = 'mention-chip bg-blue-500/10 text-blue-500 rounded text-white'
-
-    classes.split(' ').forEach(cls => node.classList.add(cls))
-    node.innerText = value
-    return node
-  }
-}
-
-Quill.register(EmbedMention)
+// Quill.register('modules/mention', QuillMention)
 
 export default {
   components: {
@@ -111,6 +95,7 @@ export default {
         return this.value
       },
       set (val) {
+        console.log(val)
         return this.$emit('input', val)
       }
     },
@@ -173,6 +158,21 @@ export default {
 
   async mounted () {
     this.quill = await getElement(this.$refs, ['mention-area', 'quill'])
+
+    new QuillMention(this.quill, {
+      source (searchTerm, renderList) {
+        renderList([
+          {
+            id: 1,
+            value: 'Fredrik Sundqvist'
+          },
+          {
+            id: 2,
+            value: 'Patrik Sjölin'
+          }
+        ])
+      }
+    })
   },
 
   methods: {
