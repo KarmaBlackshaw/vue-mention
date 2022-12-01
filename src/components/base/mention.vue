@@ -91,10 +91,6 @@ class MentionBlot extends Embed {
   static create(data) {
     const node = super.create()
 
-    const classes = 'mention-chip bg-blue-500/10 text-blue-500 rounded text-white'
-
-    classes.split(' ').forEach(cls => node.classList.add(cls))
-
     node.dataset.id = data.id
     node.innerHTML = data.name
 
@@ -137,7 +133,7 @@ export default {
       options: {
         mentionCharPos: null,
         maxChars: 31,
-        minChars: 1,
+        minChars: 0,
         mentionDenotationChars: ['@'],
         isolateCharacter: false,
         allowedChars: /^[a-zA-Z0-9_]*$/
@@ -388,7 +384,7 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss" >
 .mention-card {
   display: none;
 box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
@@ -398,4 +394,10 @@ box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
 display: block;
 }
 
+.mention {
+  background-color: rgba(0, 140, 255, 0.507);
+  color: rgba(0, 140, 255);
+  border-radius: 5px;
+  padding: 3px 5px;
+}
 </style>
