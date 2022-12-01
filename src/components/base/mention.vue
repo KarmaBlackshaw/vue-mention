@@ -61,7 +61,6 @@ import _ from 'lodash'
 import { faker } from '@faker-js/faker'
 
 import {
-  attachDataValues,
   getMentionCharIndex,
   hasValidChars,
   hasValidMentionCharIndex
@@ -233,20 +232,7 @@ export default {
   async mounted () {
     this.quill = await getElement(this.$refs, ['mention-area', 'quill'])
 
-    // new QuillMention(this.quill, {
-    //   source (searchTerm, renderList) {
-    //     renderList([
-    //       {
-    //         id: 1,
-    //         value: 'Fredrik Sundqvist'
-    //       },
-    //       {
-    //         id: 2,
-    //         value: 'Patrik Sjölin'
-    //       }
-    //     ])
-    //   }
-    // })
+    this.popper = createPopper(this.quill.container, this.$refs['mention-card'])
   },
 
   methods: {
@@ -316,17 +302,6 @@ export default {
 
     },
 
-    hideMentionList () {
-      if (this.$refs['mention-card']) {
-        this.$refs['mention-card'].removeAttribute('data-show')
-      }
-
-      if (this.popper) {
-        this.popper.destroy()
-        this.popper = null
-      }
-    },
-
     insertItem(data, programmaticInsert) {
       const render = data
       if (render === null) {
@@ -356,6 +331,12 @@ export default {
       this.hideMentionList()
     },
 
+    hideMentionList () {
+      if (this.$refs['mention-card']) {
+        this.$refs['mention-card'].removeAttribute('data-show')
+      }
+    },
+
     showMentionList () {
       const containerPos = this.quill.container.getBoundingClientRect()
       const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
@@ -366,7 +347,7 @@ export default {
         height: mentionCharPos.height
       }
 
-      this.popper = createPopper(this.quill.container, this.$refs['mention-card'], {
+      this.popper.setOptions({
         placement: 'top-start',
         modifiers: [
           {
@@ -377,6 +358,8 @@ export default {
           }
         ]
       })
+
+      this.popper.update()
 
       this.$refs['mention-card'].setAttribute('data-show', '')
     }
