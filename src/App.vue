@@ -9,7 +9,7 @@
         p-2
       "
     >
-      <div class="grow p-2 border">
+      <div class="grow p-2 border h-[600px]">
         {{ test }}
       </div>
 

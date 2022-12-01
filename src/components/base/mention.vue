@@ -282,7 +282,7 @@ export default {
       const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
       const mentionCharPosAbsolute = {
         left: containerPos.left + mentionCharPos.left,
-        top: (containerPos.height  * -1) + mentionCharPos.top + 20,
+        top: (mentionCharPos.top * -1) + 30,
         width: 0,
         height: mentionCharPos.height
       }
