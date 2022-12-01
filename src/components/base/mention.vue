@@ -13,32 +13,33 @@
       class="mention-card w-[424px] max-h-[270px] overflow-auto divide-y shadow-2xl bg-white "
     >
       <li
-        v-for="k in 20"
-        :key="k"
+        v-for="(currJobType, jobTypeKey) in usersByJobType"
+        :key="jobTypeKey"
       >
         <details>
           <summary class="list-none select-none h-[46px] flex items-center px-3 justify-between">
-            <h1>Accounting - Invoicing</h1>
+            <h1>{{ currJobType.name }}</h1>
 
             <icon-mdi:chevron-down />
           </summary>
 
           <ul class="max-h-[224px] overflow-auto border-t">
             <li
-              v-for="i in 20"
-              :key="i"
+              v-for="(currUser, userKey) in currJobType.users"
+              :key="userKey"
               class="px-3 py-2 flex items-center flex-start gap-3"
+              @click="insertItem()"
             >
               <img
-                src="https://images.pexels.com/photos/2904619/pexels-photo-2904619.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
+                :src="currUser.image"
                 alt=""
                 class="h-[32px] w-[32px] rounded-full"
               >
 
               <div class="text-sm">
-                <p>Aaron Carter</p>
+                <p>{{ currUser.name }}</p>
                 <p class="text-neutral-400">
-                  Accountants - Invoicing - Chicago
+                  {{ currUser.position }}
                 </p>
               </div>
             </li>
@@ -57,6 +58,7 @@
 import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
+import { faker } from '@faker-js/faker'
 
 import {
   attachDataValues,
@@ -106,6 +108,21 @@ export default {
   },
 
   computed: {
+    usersByJobType () {
+      return Array.from({ length: 10 }, () => {
+        return {
+          name: faker.name.jobType(),
+          users: Array.from({ length: 5 }, () => {
+            return {
+              name: faker.name.fullName(),
+              position: faker.name.jobTitle(),
+              image: faker.image.people()
+            }
+          })
+        }
+      })
+    },
+
     text: {
       get () {
         return this.value
@@ -273,6 +290,38 @@ export default {
         this.popper.destroy()
         this.popper = null
       }
+    },
+
+    insertItem(data, programmaticInsert) {
+      const render = data
+      if (render === null) {
+        return
+      }
+      if (!this.options.showDenotationChar) {
+        render.denotationChar = ''
+      }
+
+      let insertAtPos
+
+      if (!programmaticInsert) {
+        insertAtPos = this.mentionCharPos
+        this.quill.deleteText(
+          this.mentionCharPos,
+          this.cursorPos - this.mentionCharPos,
+          'user'
+        )
+      } else {
+        insertAtPos = this.cursorPos
+      }
+      this.quill.insertEmbed(insertAtPos, this.options.blotName, render, 'user')
+      if (this.options.spaceAfterInsert) {
+        this.quill.insertText(insertAtPos + 1, ' ', 'user')
+        // setSelection here sets cursor position
+        this.quill.setSelection(insertAtPos + 2, 'user')
+      } else {
+        this.quill.setSelection(insertAtPos + 1, 'user')
+      }
+      this.hideMentionList()
     },
 
     showMentionList () {
