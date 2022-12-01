@@ -28,7 +28,7 @@
               v-for="(currUser, userKey) in currJobType.users"
               :key="userKey"
               class="px-3 py-2 flex items-center flex-start gap-3"
-              @click="insertItem()"
+              @click="insertItem(currUser)"
             >
               <img
                 :src="currUser.image"
@@ -67,8 +67,6 @@ import {
   hasValidMentionCharIndex
 } from './mention/utils'
 
-import QuillMention from './mention/quill.mention-2'
-
 const getElement = async (base, path) => {
   while (!_.get(base, path)) {
     await new Promise(resolve => requestAnimationFrame(resolve))
@@ -77,7 +75,46 @@ const getElement = async (base, path) => {
   return _.get(base, path)
 }
 
-// Quill.register('modules/mention', QuillMention)
+const Embed = Quill.import('blots/embed')
+
+class MentionBlot extends Embed {
+  static blotName = 'mention'
+  static tagName = 'span'
+  static className = 'mention'
+
+  constructor(scroll, node) {
+    super(scroll, node)
+    this.clickHandler = null
+    this.mounted = false
+  }
+
+  static create(data) {
+    const node = super.create()
+
+    const classes = 'mention-chip bg-blue-500/10 text-blue-500 rounded text-white'
+
+    classes.split(' ').forEach(cls => node.classList.add(cls))
+
+    node.dataset.id = data.id
+    node.innerHTML = data.name
+
+    return node
+  }
+
+  static value(domNode) {
+    return domNode.dataset
+  }
+
+  getClickHandler() {
+    return e => {
+      const event = this.buildEvent('mention-clicked', e)
+      window.dispatchEvent(event)
+      e.preventDefault()
+    }
+  }
+}
+
+Quill.register(MentionBlot)
 
 export default {
   components: {
@@ -98,6 +135,7 @@ export default {
       searchString: null,
       cursorPos: null,
       options: {
+        mentionCharPos: null,
         maxChars: 31,
         minChars: 1,
         mentionDenotationChars: ['@'],
@@ -114,6 +152,7 @@ export default {
           name: faker.name.jobType(),
           users: Array.from({ length: 5 }, () => {
             return {
+              id: _.uniqueId(),
               name: faker.name.fullName(),
               position: faker.name.jobTitle(),
               image: faker.image.people()
@@ -313,20 +352,15 @@ export default {
       } else {
         insertAtPos = this.cursorPos
       }
-      this.quill.insertEmbed(insertAtPos, this.options.blotName, render, 'user')
-      if (this.options.spaceAfterInsert) {
-        this.quill.insertText(insertAtPos + 1, ' ', 'user')
-        // setSelection here sets cursor position
-        this.quill.setSelection(insertAtPos + 2, 'user')
-      } else {
-        this.quill.setSelection(insertAtPos + 1, 'user')
-      }
+
+      this.quill.insertEmbed(insertAtPos, 'mention', render, 'user')
+      this.quill.insertText(insertAtPos + 1, ' ', 'user')
+      this.quill.setSelection(insertAtPos + 2, 'user')
+
       this.hideMentionList()
     },
 
     showMentionList () {
-
-      console.log()
       const containerPos = this.quill.container.getBoundingClientRect()
       const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
       const mentionCharPosAbsolute = {
