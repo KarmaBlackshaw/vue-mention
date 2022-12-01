@@ -95,8 +95,14 @@ export default {
         return this.value
       },
       set (val) {
-        console.log(val)
-        return this.$emit('input', val)
+        const regex = new RegExp('<span class="mention" data-id="(.*?)">.*?</span>', 'gm')
+        const newText = val
+          .replace(/\n/g, '')
+          .replace(regex, (str, match) => {
+            return `<span class="mention">@{${match}}</span>`
+          })
+
+        return this.$emit('input', newText)
       }
     },
 
