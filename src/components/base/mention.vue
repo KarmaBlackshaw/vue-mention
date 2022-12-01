@@ -5,6 +5,7 @@
       v-model="text"
       placeholder="Type a message..."
       :editor-options="editorOptions"
+      @input="onSomethingChange"
     />
 
     <ul
@@ -57,7 +58,14 @@ import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
 
-import QuillMention from './mention/quill.mention'
+import {
+  attachDataValues,
+  getMentionCharIndex,
+  hasValidChars,
+  hasValidMentionCharIndex
+} from './mention/utils'
+
+import QuillMention from './mention/quill.mention-2'
 
 const getElement = async (base, path) => {
   while (!_.get(base, path)) {
@@ -85,7 +93,15 @@ export default {
     return {
       popper: null,
       quill: null,
-      searchString: null
+      searchString: null,
+      cursorPos: null,
+      options: {
+        maxChars: 31,
+        minChars: 1,
+        mentionDenotationChars: ['@'],
+        isolateCharacter: false,
+        allowedChars: /^[a-zA-Z0-9_]*$/
+      }
     }
   },
 
@@ -165,69 +181,125 @@ export default {
   async mounted () {
     this.quill = await getElement(this.$refs, ['mention-area', 'quill'])
 
-    new QuillMention(this.quill, {
-      source (searchTerm, renderList) {
-        renderList([
-          {
-            id: 1,
-            value: 'Fredrik Sundqvist'
-          },
-          {
-            id: 2,
-            value: 'Patrik Sjölin'
-          }
-        ])
-      }
-    })
+    // new QuillMention(this.quill, {
+    //   source (searchTerm, renderList) {
+    //     renderList([
+    //       {
+    //         id: 1,
+    //         value: 'Fredrik Sundqvist'
+    //       },
+    //       {
+    //         id: 2,
+    //         value: 'Patrik Sjölin'
+    //       }
+    //     ])
+    //   }
+    // })
   },
 
   methods: {
-    onInput () {
+    getTextBeforeCursor() {
+      const startPos = Math.max(0, this.cursorPos - this.options.maxChars)
+      const textBeforeCursorPos = this.quill.getText(
+        startPos,
+        this.cursorPos - startPos
+      )
+      return textBeforeCursorPos
+    },
+
+    onSomethingChange () {
       if (!this.quill) {
         return
       }
 
-      const nonHtmlText = this.quill.getText(0, this.quill.getLength())
+      const range = this.quill.getSelection()
+      if (range == null) {
+        return
+      }
 
-      const lastKeyIndex = nonHtmlText.lastIndexOf('@')
-      const lastTextIndex = nonHtmlText.length
+      this.cursorPos = range.index
+      const textBeforeCursor = this.getTextBeforeCursor()
+      const { mentionChar, mentionCharIndex } = getMentionCharIndex(
+        textBeforeCursor,
+        this.options.mentionDenotationChars
+      )
 
-      const mention = lastKeyIndex > -1
-        ? nonHtmlText.substring(lastKeyIndex + 1, lastTextIndex)
-        : null
+      if (
+        hasValidMentionCharIndex(
+          mentionCharIndex,
+          textBeforeCursor,
+          this.options.isolateCharacter
+        )
+      ) {
+        const mentionCharPos = this.cursorPos - (textBeforeCursor.length - mentionCharIndex)
+        this.mentionCharPos = mentionCharPos
+        const textAfter = textBeforeCursor.substring(
+          mentionCharIndex + mentionChar.length
+        )
 
-      this.searchString = mention && (/[^\s]/g).test(mention)
-        ? {
-          text: mention,
-          startIndex: lastKeyIndex,
-          endIndex: lastTextIndex
+        if (
+          textAfter.length >= this.options.minChars &&
+          hasValidChars(textAfter, this.getAllowedCharsRegex(mentionChar))
+        ) {
+          this.showMentionList()
+        } else {
+          if (this.existingSourceExecutionToken) {
+            this.existingSourceExecutionToken.abandoned = true
+          }
+          this.hideMentionList()
         }
-        : null
+      } else {
+        if (this.existingSourceExecutionToken) {
+          this.existingSourceExecutionToken.abandoned = true
+        }
+        this.hideMentionList()
+      }
+    },
 
-      const lastEl = _.last(this.quill.root.childNodes)
+    getAllowedCharsRegex(denotationChar) {
+      if (this.options.allowedChars instanceof RegExp) {
+        return this.options.allowedChars
+      }
+      return this.options.allowedChars(denotationChar)
 
-      const selection = this.quill.getSelection()
-      const bounds = this.quill.getBounds(selection.index)
+    },
 
-      if (this.popper && !this.searchString) {
+    hideMentionList () {
+      if (this.$refs['mention-card']) {
         this.$refs['mention-card'].removeAttribute('data-show')
+      }
+
+      if (this.popper) {
         this.popper.destroy()
         this.popper = null
-      } else if (!this.popper && this.searchString) {
-        this.popper = createPopper(lastEl, this.$refs['mention-card'], {
-          placement: 'top-start',
-          modifiers: [
-            {
-              name: 'offset',
-              options: {
-                offset: [bounds.left]
-              }
-            }
-          ]
-        })
-
-        this.$refs['mention-card'].setAttribute('data-show', '')
       }
+    },
+
+    showMentionList () {
+
+      console.log()
+      const containerPos = this.quill.container.getBoundingClientRect()
+      const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
+      const mentionCharPosAbsolute = {
+        left: containerPos.left + mentionCharPos.left,
+        top: (containerPos.height  * -1) + mentionCharPos.top + 20,
+        width: 0,
+        height: mentionCharPos.height
+      }
+
+      this.popper = createPopper(this.quill.container, this.$refs['mention-card'], {
+        placement: 'top-start',
+        modifiers: [
+          {
+            name: 'offset',
+            options: {
+              offset: [mentionCharPosAbsolute.left, mentionCharPosAbsolute.top]
+            }
+          }
+        ]
+      })
+
+      this.$refs['mention-card'].setAttribute('data-show', '')
     }
   }
 }
