@@ -52,9 +52,6 @@
 
 <script>
 // libs
-
-// check
-// https://github.com/quill-mention/quill-mention/blob/master/src/quill.mention.js
 import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
@@ -62,9 +59,9 @@ import { faker } from '@faker-js/faker'
 
 import {
   getMentionCharIndex,
-  hasValidChars,
-  hasValidMentionCharIndex
-} from './mention/utils'
+  hasValidMentionCharIndex,
+  MentionBlot
+} from './mention-helpers'
 
 const getElement = async (base, path) => {
   while (!_.get(base, path)) {
@@ -72,41 +69,6 @@ const getElement = async (base, path) => {
   }
 
   return _.get(base, path)
-}
-
-const Embed = Quill.import('blots/embed')
-
-class MentionBlot extends Embed {
-  static blotName = 'mention'
-  static tagName = 'span'
-  static className = 'mention'
-
-  constructor(scroll, node) {
-    super(scroll, node)
-    this.clickHandler = null
-    this.mounted = false
-  }
-
-  static create(data) {
-    const node = super.create()
-
-    node.dataset.id = data.id
-    node.innerHTML = data.name
-
-    return node
-  }
-
-  static value(domNode) {
-    return domNode.dataset
-  }
-
-  getClickHandler() {
-    return e => {
-      const event = this.buildEvent('mention-clicked', e)
-      window.dispatchEvent(event)
-      e.preventDefault()
-    }
-  }
 }
 
 Quill.register(MentionBlot)
@@ -120,6 +82,15 @@ export default {
     value: {
       type: String,
       default: ''
+    },
+    options: {
+      type: Object,
+      default: () => ({
+        maxChars: 31,
+        minChars: 0,
+        mentionDenotationChars: ['@'],
+        allowedChars: /^[a-zA-Z0-9_]*$/
+      })
     }
   },
 
@@ -129,14 +100,7 @@ export default {
       quill: null,
       searchString: null,
       cursorPos: null,
-      options: {
-        mentionCharPos: null,
-        maxChars: 31,
-        minChars: 0,
-        mentionDenotationChars: ['@'],
-        isolateCharacter: false,
-        allowedChars: /^[a-zA-Z0-9_]*$/
-      }
+      mentionCharPos: null
     }
   },
 
@@ -164,7 +128,6 @@ export default {
       set (val) {
         const regex = new RegExp('<span class="mention" data-id="(.*?)">.*?</span>', 'gm')
         const newText = val
-          .replace(/\n/g, '')
           .replace(regex, (str, match) => {
             return `<span class="mention">@{${match}}</span>`
           })
@@ -262,69 +225,39 @@ export default {
         this.options.mentionDenotationChars
       )
 
-      if (
-        hasValidMentionCharIndex(
-          mentionCharIndex,
-          textBeforeCursor,
-          this.options.isolateCharacter
-        )
-      ) {
+      if (hasValidMentionCharIndex(mentionCharIndex,textBeforeCursor)) {
         const mentionCharPos = this.cursorPos - (textBeforeCursor.length - mentionCharIndex)
         this.mentionCharPos = mentionCharPos
         const textAfter = textBeforeCursor.substring(
           mentionCharIndex + mentionChar.length
         )
 
-        if (
-          textAfter.length >= this.options.minChars &&
-          hasValidChars(textAfter, this.getAllowedCharsRegex(mentionChar))
-        ) {
+        const hasValidChars = this.options.allowedChars.test(textAfter)
+
+        if (textAfter.length >= this.options.minChars && hasValidChars) {
           this.showMentionList()
         } else {
-          if (this.existingSourceExecutionToken) {
-            this.existingSourceExecutionToken.abandoned = true
-          }
           this.hideMentionList()
         }
       } else {
-        if (this.existingSourceExecutionToken) {
-          this.existingSourceExecutionToken.abandoned = true
-        }
         this.hideMentionList()
       }
     },
 
-    getAllowedCharsRegex(denotationChar) {
-      if (this.options.allowedChars instanceof RegExp) {
-        return this.options.allowedChars
-      }
-      return this.options.allowedChars(denotationChar)
-
-    },
-
-    insertItem(data, programmaticInsert) {
-      const render = data
-      if (render === null) {
+    insertItem(data) {
+      if (data === null) {
         return
       }
-      if (!this.options.showDenotationChar) {
-        render.denotationChar = ''
-      }
 
-      let insertAtPos
+      const insertAtPos = this.mentionCharPos
 
-      if (!programmaticInsert) {
-        insertAtPos = this.mentionCharPos
-        this.quill.deleteText(
-          this.mentionCharPos,
-          this.cursorPos - this.mentionCharPos,
-          'user'
-        )
-      } else {
-        insertAtPos = this.cursorPos
-      }
+      this.quill.deleteText(
+        this.mentionCharPos,
+        this.cursorPos - this.mentionCharPos,
+        'user'
+      )
 
-      this.quill.insertEmbed(insertAtPos, 'mention', render, 'user')
+      this.quill.insertEmbed(insertAtPos, 'mention', data, 'user')
       this.quill.insertText(insertAtPos + 1, ' ', 'user')
       this.quill.setSelection(insertAtPos + 2, 'user')
 
@@ -370,11 +303,11 @@ export default {
 <style lang="scss" >
 .mention-card {
   display: none;
-box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .mention-card[data-show] {
-display: block;
+  display: block;
 }
 
 .mention {
