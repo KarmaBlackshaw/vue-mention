@@ -1,52 +1,21 @@
 <template>
   <div>
     <vue-editor
-      ref="mention-area"
+      ref="editor"
       v-model="text"
       placeholder="Type a message..."
-      :editor-options="editorOptions"
+      :editor-options="assignedEditorOptions"
       @input="onSomethingChange"
     />
 
-    <ul
+    <div
       ref="mention-card"
       class="mention-card w-[424px] max-h-[270px] overflow-auto divide-y shadow-2xl bg-white "
     >
-      <li
-        v-for="(currJobType, jobTypeKey) in usersByJobType"
-        :key="jobTypeKey"
-      >
-        <details>
-          <summary class="list-none select-none h-[46px] flex items-center px-3 justify-between">
-            <h1>{{ currJobType.name }}</h1>
-
-            <icon-mdi:chevron-down />
-          </summary>
-
-          <ul class="max-h-[224px] overflow-auto border-t">
-            <li
-              v-for="(currUser, userKey) in currJobType.users"
-              :key="userKey"
-              class="px-3 py-2 flex items-center flex-start gap-3"
-              @click="insertItem(currUser)"
-            >
-              <img
-                :src="currUser.image"
-                alt=""
-                class="h-[32px] w-[32px] rounded-full"
-              >
-
-              <div class="text-sm">
-                <p>{{ currUser.name }}</p>
-                <p class="text-neutral-400">
-                  {{ currUser.position }}
-                </p>
-              </div>
-            </li>
-          </ul>
-        </details>
-      </li>
-    </ul>
+      <slot
+        :insert-item="insertItem"
+      ></slot>
+    </div>
   </div>
 </template>
 
@@ -55,7 +24,6 @@
 import { VueEditor, Quill } from 'vue2-editor'
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
-import { faker } from '@faker-js/faker'
 
 import {
   getMentionCharIndex,
@@ -85,12 +53,11 @@ export default {
     },
     options: {
       type: Object,
-      default: () => ({
-        maxChars: 31,
-        minChars: 0,
-        mentionDenotationChars: ['@'],
-        allowedChars: /^[a-zA-Z0-9_]*$/
-      })
+      default: () => ({})
+    },
+    editorOptions: {
+      type: Object,
+      default: () => ({})
     }
   },
 
@@ -98,6 +65,7 @@ export default {
     return {
       popper: null,
       quill: null,
+      mentionCard: null,
       searchString: null,
       cursorPos: null,
       mentionCharPos: null
@@ -105,22 +73,6 @@ export default {
   },
 
   computed: {
-    usersByJobType () {
-      return Array.from({ length: 10 }, () => {
-        return {
-          name: faker.name.jobType(),
-          users: Array.from({ length: 5 }, () => {
-            return {
-              id: _.uniqueId(),
-              name: faker.name.fullName(),
-              position: faker.name.jobTitle(),
-              image: faker.image.people()
-            }
-          })
-        }
-      })
-    },
-
     text: {
       get () {
         return this.value
@@ -136,8 +88,8 @@ export default {
       }
     },
 
-    editorOptions () {
-      return {
+    assignedEditorOptions () {
+      return _.defaultsDeep(this.editorOptions, {
         modules: {
           toolbar: false,
           keyboard: {
@@ -188,19 +140,34 @@ export default {
             }
           }
         }
-      }
+      })
+    },
+
+    assignedOptions () {
+      return _.defaultsDeep(this.options, {
+        maxChars: 31,
+        minChars: 0,
+        mentionDenotationChars: ['@'],
+        allowedChars: /^[a-zA-Z0-9_]*$/
+      })
     }
   },
 
   async mounted () {
-    this.quill = await getElement(this.$refs, ['mention-area', 'quill'])
+    const [quill, mentionCard] = await Promise.all([
+      getElement(this.$refs, ['editor', 'quill']),
+      getElement(this.$refs, ['mention-card'])
+    ])
 
-    this.popper = createPopper(this.quill.container, this.$refs['mention-card'])
+    this.quill = quill
+    this.mentionCard = mentionCard
+
+    this.popper = createPopper(this.quill.container, this.mentionCard)
   },
 
   methods: {
     getTextBeforeCursor() {
-      const startPos = Math.max(0, this.cursorPos - this.options.maxChars)
+      const startPos = Math.max(0, this.cursorPos - this.assignedOptions.maxChars)
       const textBeforeCursorPos = this.quill.getText(
         startPos,
         this.cursorPos - startPos
@@ -222,7 +189,7 @@ export default {
       const textBeforeCursor = this.getTextBeforeCursor()
       const { mentionChar, mentionCharIndex } = getMentionCharIndex(
         textBeforeCursor,
-        this.options.mentionDenotationChars
+        this.assignedOptions.mentionDenotationChars
       )
 
       if (hasValidMentionCharIndex(mentionCharIndex,textBeforeCursor)) {
@@ -232,9 +199,9 @@ export default {
           mentionCharIndex + mentionChar.length
         )
 
-        const hasValidChars = this.options.allowedChars.test(textAfter)
+        const hasValidChars = this.assignedOptions.allowedChars.test(textAfter)
 
-        if (textAfter.length >= this.options.minChars && hasValidChars) {
+        if (textAfter.length >= this.assignedOptions.minChars && hasValidChars) {
           this.showMentionList()
         } else {
           this.hideMentionList()
@@ -265,9 +232,7 @@ export default {
     },
 
     hideMentionList () {
-      if (this.$refs['mention-card']) {
-        this.$refs['mention-card'].removeAttribute('data-show')
-      }
+      this.mentionCard.removeAttribute('data-show')
     },
 
     showMentionList () {
@@ -294,7 +259,7 @@ export default {
 
       this.popper.update()
 
-      this.$refs['mention-card'].setAttribute('data-show', '')
+      this.mentionCard.setAttribute('data-show', '')
     }
   }
 }

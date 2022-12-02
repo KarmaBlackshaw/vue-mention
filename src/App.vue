@@ -16,7 +16,49 @@
       <base-mention
         v-model="test"
         class="overflow-auto"
-      />
+        :options="{
+          minChars: 2
+        }"
+      >
+        <template #default="{ insertItem }">
+          <ul>
+            <li
+              v-for="(currJobType, jobTypeKey) in usersByJobType"
+              :key="jobTypeKey"
+            >
+              <details>
+                <summary class="list-none select-none h-[46px] flex items-center px-3 justify-between">
+                  <h1>{{ currJobType.name }}</h1>
+
+                  <icon-mdi:chevron-down />
+                </summary>
+
+                <ul class="max-h-[224px] overflow-auto border-t">
+                  <li
+                    v-for="(currUser, userKey) in currJobType.users"
+                    :key="userKey"
+                    class="px-3 py-2 flex items-center flex-start gap-3"
+                    @click="insertItem(currUser)"
+                  >
+                    <img
+                      :src="currUser.image"
+                      alt=""
+                      class="h-[32px] w-[32px] rounded-full"
+                    >
+
+                    <div class="text-sm">
+                      <p>{{ currUser.name }}</p>
+                      <p class="text-neutral-400">
+                        {{ currUser.position }}
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </details>
+            </li>
+          </ul>
+        </template>
+      </base-mention>
 
       <button class="bg-blue-500 h-[50px] text-white">
         Send
@@ -26,6 +68,8 @@
 </template>
 
 <script>
+import { faker } from '@faker-js/faker'
+import _ from 'lodash'
 
 export default {
   name: 'App',
@@ -33,6 +77,24 @@ export default {
   data() {
     return {
       test: ''
+    }
+  },
+
+  computed: {
+    usersByJobType () {
+      return Array.from({ length: 10 }, () => {
+        return {
+          name: faker.name.jobType(),
+          users: Array.from({ length: 5 }, () => {
+            return {
+              id: _.uniqueId(),
+              name: faker.name.fullName(),
+              position: faker.name.jobTitle(),
+              image: faker.image.people()
+            }
+          })
+        }
+      })
     }
   }
 }
