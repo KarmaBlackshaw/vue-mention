@@ -17,13 +17,9 @@ class MentionBlot extends Embed {
     const node = super.create()
 
     node.dataset.id = data.id
-    node.innerHTML = data.name
+    node.innerHTML = data.text
 
     return node
-  }
-
-  static value(domNode) {
-    return domNode.dataset
   }
 
   getClickHandler() {

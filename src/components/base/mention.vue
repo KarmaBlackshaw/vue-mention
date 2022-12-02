@@ -1,3 +1,29 @@
+<!--
+USAGE:
+
+<base-mention
+  v-model="test"
+  :options="{
+    minChars: 0
+  }"
+  :search-string.sync="searchString"
+>
+  <template #default="{ mention }">
+    <ul>
+      <li
+        v-for="(user, userKey) in users"
+        :key="jobTypeKey"
+        @click="mention({
+          id: user.id,
+          text: user.name
+        })"
+      >
+      </li>
+    </ul>
+  </template>
+</base-mention>
+
+  -->
 <template>
   <div>
     <vue-editor
@@ -13,7 +39,7 @@
       class="mention-card w-[424px] max-h-[270px] overflow-auto divide-y shadow-2xl bg-white "
     >
       <slot
-        :insert-item="insertItem"
+        :mention="insertItem"
       ></slot>
     </div>
   </div>
@@ -66,9 +92,9 @@ export default {
       popper: null,
       quill: null,
       mentionCard: null,
-      searchString: null,
       cursorPos: null,
-      mentionCharPos: null
+      mentionCharPos: null,
+      searchString: ''
     }
   },
 
@@ -80,7 +106,7 @@ export default {
       set (val) {
         const regex = new RegExp('<span class="mention" data-id="(.*?)">.*?</span>', 'gm')
         const newText = val
-          .replace(regex, (str, match) => {
+          .replace(regex, (_str, match) => {
             return `<span class="mention">@{${match}}</span>`
           })
 
@@ -112,29 +138,7 @@ export default {
               enter: {
                 key: 13,
                 handler: () => {
-                  if (!this.searchString) {
-                    return
-                  }
-
-                  /**
-                   * Remove raw mention
-                   */
-                  const totalMentions = this.quill.getContents().ops.filter(x => x.insert?.mention).length
-                  const startIndex = this.searchString.startIndex + totalMentions
-                  this.quill.deleteText(
-                    startIndex,
-                    ((this.searchString.endIndex + totalMentions) - startIndex) + 1
-                  )
-
-                  /**
-                   * Insert mention
-                   */
-                  const range = this.quill.getSelection()
-                  if (range) {
-                    this.quill.insertEmbed(range.index, 'mention', 'sample-text')
-                    this.quill.insertText(range.index + 1, ' ', 'silent')
-                    this.quill.setSelection(range.index + 2, 0)
-                  }
+                  return
                 }
               }
             }
@@ -186,6 +190,7 @@ export default {
       }
 
       this.cursorPos = range.index
+
       const textBeforeCursor = this.getTextBeforeCursor()
       const { mentionChar, mentionCharIndex } = getMentionCharIndex(
         textBeforeCursor,
@@ -193,15 +198,14 @@ export default {
       )
 
       if (hasValidMentionCharIndex(mentionCharIndex,textBeforeCursor)) {
-        const mentionCharPos = this.cursorPos - (textBeforeCursor.length - mentionCharIndex)
-        this.mentionCharPos = mentionCharPos
-        const textAfter = textBeforeCursor.substring(
-          mentionCharIndex + mentionChar.length
-        )
+        this.mentionCharPos = this.cursorPos - (textBeforeCursor.length - mentionCharIndex)
 
-        const hasValidChars = this.assignedOptions.allowedChars.test(textAfter)
+        this.searchString = textBeforeCursor.substring(mentionCharIndex + mentionChar.length)
 
-        if (textAfter.length >= this.assignedOptions.minChars && hasValidChars) {
+        const hasValidChars = this.assignedOptions.allowedChars.test(this.searchString)
+
+        if (this.searchString.length >= this.assignedOptions.minChars && hasValidChars) {
+
           this.showMentionList()
         } else {
           this.hideMentionList()
@@ -211,8 +215,8 @@ export default {
       }
     },
 
-    insertItem(data) {
-      if (data === null) {
+    insertItem (data) {
+      if (data === null || !_.has(data, 'id') || !_.has(data, 'text')) {
         return
       }
 
@@ -232,10 +236,14 @@ export default {
     },
 
     hideMentionList () {
+      this.$emit('update:searchString', '')
+
       this.mentionCard.removeAttribute('data-show')
     },
 
     showMentionList () {
+      this.$emit('update:searchString', this.searchString)
+
       const containerPos = this.quill.container.getBoundingClientRect()
       const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
       const mentionCharPosAbsolute = {

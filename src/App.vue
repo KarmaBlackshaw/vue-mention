@@ -15,12 +15,12 @@
 
       <base-mention
         v-model="test"
-        class="overflow-auto"
         :options="{
-          minChars: 2
+          minChars: 0
         }"
+        :search-string.sync="searchString"
       >
-        <template #default="{ insertItem }">
+        <template #default="{ mention }">
           <ul>
             <li
               v-for="(currJobType, jobTypeKey) in usersByJobType"
@@ -38,7 +38,10 @@
                     v-for="(currUser, userKey) in currJobType.users"
                     :key="userKey"
                     class="px-3 py-2 flex items-center flex-start gap-3"
-                    @click="insertItem(currUser)"
+                    @click="mention({
+                      id: `${userKey}:${jobTypeKey}`,
+                      text: currUser.name
+                    })"
                   >
                     <img
                       :src="currUser.image"
@@ -76,13 +79,9 @@ export default {
 
   data() {
     return {
-      test: ''
-    }
-  },
-
-  computed: {
-    usersByJobType () {
-      return Array.from({ length: 10 }, () => {
+      test: '',
+      searchString: '',
+      list: Array.from({ length: 10 }, () => {
         return {
           name: faker.name.jobType(),
           users: Array.from({ length: 5 }, () => {
@@ -95,6 +94,29 @@ export default {
           })
         }
       })
+    }
+  },
+
+  computed: {
+    usersByJobType () {
+      if (_.isEmpty(this.searchString)) {
+        return this.list
+      }
+
+      const searchRegex = new RegExp(this.searchString.toLowerCase(), 'i')
+
+      return this.list
+        .map(job => {
+          return {
+            ...job,
+            users: job.users.filter(user => {
+              return user.name
+                .replace(/\s/g, '')
+                .match(searchRegex)
+            })
+          }
+        })
+        .filter(job => job.users.length)
     }
   }
 }
