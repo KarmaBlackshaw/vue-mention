@@ -1,3 +1,4 @@
+import Quill from 'quill'
 import Keys from './constants'
 import {
   attachDataValues,
@@ -8,6 +9,8 @@ import {
 import './quill.mention.css'
 import './blots/mention'
 
+import { createPopper } from '@popperjs/core'
+
 class Mention {
   constructor(quill, options) {
     this.isOpen = false
@@ -16,6 +19,10 @@ class Mention {
     this.cursorPos = null
     this.values = []
     this.suspendMouseEnter = false
+    //this token is an object that may contains one key "abandoned", set to
+    //true when the previous source call should be ignored in favor or a
+    //more recent execution.  This token will be null unless a source call
+    //is in progress.
     this.existingSourceExecutionToken = null
 
     this.quill = quill
@@ -24,6 +31,9 @@ class Mention {
       source: null,
       renderItem(item) {
         return `${item.value}`
+      },
+      renderLoading() {
+        return null
       },
       onSelect(item, insertItem) {
         insertItem(item)
@@ -56,7 +66,9 @@ class Mention {
       mentionContainerClass: 'ql-mention-list-container',
       mentionListClass: 'ql-mention-list',
       spaceAfterInsert: true,
-      selectKeys: [Keys.ENTER]
+      selectKeys: [Keys.ENTER],
+      editor: null,
+      popper: null
     }
 
     Object.assign(this.options, options, {
@@ -64,6 +76,8 @@ class Mention {
         ? this.options.dataAttributes.concat(options.dataAttributes)
         : this.options.dataAttributes
     })
+
+    this.popper = createPopper(this.options.editor, this.options.popper)
 
     //create mention container
     this.mentionContainer = document.createElement('div')
@@ -105,6 +119,39 @@ class Mention {
     )
     quill.keyboard.bindings[Keys.TAB].unshift(
       quill.keyboard.bindings[Keys.TAB].pop()
+    )
+
+    for (const selectKey of this.options.selectKeys) {
+      quill.keyboard.addBinding(
+        {
+          key: selectKey
+        },
+        this.selectHandler.bind(this)
+      )
+    }
+    quill.keyboard.bindings[Keys.ENTER].unshift(
+      quill.keyboard.bindings[Keys.ENTER].pop()
+    )
+
+    quill.keyboard.addBinding(
+      {
+        key: Keys.ESCAPE
+      },
+      this.escapeHandler.bind(this)
+    )
+
+    quill.keyboard.addBinding(
+      {
+        key: Keys.UP
+      },
+      this.upHandler.bind(this)
+    )
+
+    quill.keyboard.addBinding(
+      {
+        key: Keys.DOWN
+      },
+      this.downHandler.bind(this)
     )
   }
 
@@ -223,12 +270,57 @@ class Mention {
     if (data.disabled) {
       return
     }
-    this.options.onSelect(data, asyncData => {
-      this.insertItem(asyncData)
+    console.log(data)
+    this.insertItem(data)
+    this.hideMentionList()
+  }
+
+  _selectItem ({
+    denotationChar,
+    id,
+    index,
+    value
+  }) {
+    this._insertItem({
+      denotationChar,
+      id,
+      index,
+      value
     })
     this.hideMentionList()
   }
 
+  _insertItem(data, programmaticInsert) {
+    const render = data
+    if (render === null) {
+      return
+    }
+    if (!this.options.showDenotationChar) {
+      render.denotationChar = ''
+    }
+
+    let insertAtPos
+
+    if (!programmaticInsert) {
+      insertAtPos = this.mentionCharPos
+      this.quill.deleteText(
+        this.mentionCharPos,
+        this.cursorPos - this.mentionCharPos,
+        Quill.sources.USER
+      )
+    } else {
+      insertAtPos = this.cursorPos
+    }
+    this.quill.insertEmbed(insertAtPos, this.options.blotName, render, Quill.sources.USER)
+    if (this.options.spaceAfterInsert) {
+      this.quill.insertText(insertAtPos + 1, ' ', Quill.sources.USER)
+      // setSelection here sets cursor position
+      this.quill.setSelection(insertAtPos + 2, Quill.sources.USER)
+    } else {
+      this.quill.setSelection(insertAtPos + 1, Quill.sources.USER)
+    }
+    this.hideMentionList()
+  }
   insertItem(data, programmaticInsert) {
     const render = data
     if (render === null) {
@@ -245,18 +337,18 @@ class Mention {
       this.quill.deleteText(
         this.mentionCharPos,
         this.cursorPos - this.mentionCharPos,
-        'user'
+        Quill.sources.USER
       )
     } else {
       insertAtPos = this.cursorPos
     }
-    this.quill.insertEmbed(insertAtPos, this.options.blotName, render, 'user')
+    this.quill.insertEmbed(insertAtPos, this.options.blotName, render, Quill.sources.USER)
     if (this.options.spaceAfterInsert) {
-      this.quill.insertText(insertAtPos + 1, ' ', 'user')
+      this.quill.insertText(insertAtPos + 1, ' ', Quill.sources.USER)
       // setSelection here sets cursor position
-      this.quill.setSelection(insertAtPos + 2, 'user')
+      this.quill.setSelection(insertAtPos + 2, Quill.sources.USER)
     } else {
-      this.quill.setSelection(insertAtPos + 1, 'user')
+      this.quill.setSelection(insertAtPos + 1, Quill.sources.USER)
     }
     this.hideMentionList()
   }
@@ -274,7 +366,7 @@ class Mention {
     }
   }
 
-  onDisabledItemMouseEnter() {
+  onDisabledItemMouseEnter(e) {
     if (this.suspendMouseEnter) {
       return
     }
@@ -297,6 +389,25 @@ class Mention {
   onItemMouseDown(e) {
     e.preventDefault()
     e.stopImmediatePropagation()
+  }
+
+  renderLoading() {
+    const renderedLoading = this.options.renderLoading()
+    if (!renderedLoading) {
+      return
+    }
+
+    if (this.mentionContainer.getElementsByClassName('ql-mention-loading').length > 0) {
+      this.showMentionList()
+      return
+    }
+
+    this.mentionList.innerHTML = ''
+    const loadingDiv = document.createElement('div')
+    loadingDiv.className = 'ql-mention-loading'
+    loadingDiv.innerHTML = this.options.renderLoading()
+    this.mentionContainer.append(loadingDiv)
+    this.showMentionList()
   }
 
   removeLoading() {
@@ -356,7 +467,6 @@ class Mention {
     do {
       increment++
       newIndex = (this.itemIndex + increment) % this.values.length
-      // eslint-disable-next-line no-var
       var disabled = this.mentionList.childNodes[newIndex].dataset.disabled === 'true'
       if (increment === this.values.length + 1) {
         //we've wrapped around w/o finding an enabled item
@@ -377,7 +487,6 @@ class Mention {
     do {
       decrement++
       newIndex = (this.itemIndex + this.values.length - decrement) % this.values.length
-      // eslint-disable-next-line no-var
       var disabled = this.mentionList.childNodes[newIndex].dataset.disabled === 'true'
       if (decrement === this.values.length + 1) {
         //we've wrapped around w/o finding an enabled item
@@ -630,6 +739,7 @@ class Mention {
         if (this.existingSourceExecutionToken) {
           this.existingSourceExecutionToken.abandoned = true
         }
+        this.renderLoading()
         const sourceRequestToken = {
           abandoned: false
         }
@@ -688,5 +798,7 @@ class Mention {
     this.quill.focus()
   }
 }
+
+Quill.register('modules/mention', Mention)
 
 export default Mention

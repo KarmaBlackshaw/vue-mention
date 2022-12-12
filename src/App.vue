@@ -2,26 +2,7 @@
   <div
     id="app"
   >
-    <div
-      class="
-        border w-[400px]
-        flex flex-col gap-2
-        p-2
-      "
-    >
-      <div class="grow p-2 border">
-        {{ test }}
-      </div>
-
-      <base-mention
-        v-model="test"
-        class="overflow-auto"
-      />
-
-      <button class="bg-blue-500 h-[50px] text-white">
-        Send
-      </button>
-    </div>
+    <base-mention />
   </div>
 </template>
 
