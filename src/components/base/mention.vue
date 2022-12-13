@@ -18,10 +18,10 @@
             denotationChar: '@',
             id: item.id,
             index: idx,
-            value: item.value
+            value: item.name
           })"
         >
-          {{ item.value }}
+          {{ item.name }}
         </li>
       </ul>
     </div>
@@ -34,9 +34,9 @@ import QuillMention from '@/mention/quill.mention'
 
 // check
 // https://github.com/quill-mention/quill-mention/blob/master/src/quill.mention.js
-import { VueEditor, Quill } from 'vue2-editor'
-import { createPopper } from '@popperjs/core'
+import { VueEditor } from 'vue2-editor'
 import _ from 'lodash'
+import { faker } from '@faker-js/faker'
 
 const getElement = async (base, path) => {
   while (!_.get(base, path)) {
@@ -64,16 +64,14 @@ export default {
       quill: null,
       quillMention: null,
       searchString: null,
-      items: [
-        {
-          id: 1,
-          value: 'Fredrik Sundqvist'
-        },
-        {
-          id: 2,
-          value: 'Patrik Sjölin'
+      items: Array.from({ length: 10 }, () => {
+        return {
+          id: _.uniqueId(),
+          name: faker.name.fullName(),
+          position: faker.name.jobTitle(),
+          image: faker.image.people()
         }
-      ]
+      })
     }
   },
 
