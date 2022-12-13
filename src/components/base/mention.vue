@@ -1,5 +1,6 @@
 <template>
   <div>
+    {{ text }}
     <vue-editor
       id="editor"
       ref="mention-area"

@@ -45,7 +45,7 @@ class Mention {
     })
   }
 
-  insertItem(data, programmaticInsert) {
+  insertItem(data) {
     const render = data
     if (render === null) {
       return
@@ -64,7 +64,6 @@ class Mention {
 
     this.quill.insertEmbed(insertAtPos, this.assignedOptions.blotName, render, Quill.sources.USER)
     this.quill.insertText(insertAtPos + 1, ' ', Quill.sources.USER)
-    // setSelection here sets cursor position
     this.quill.setSelection(insertAtPos + 2, Quill.sources.USER)
     this.hideMentionList()
   }
@@ -104,7 +103,7 @@ class Mention {
 
       if (
         textAfter.length >= this.assignedOptions.minChars &&
-        hasValidChars(textAfter, this.getAllowedCharsRegex(mentionChar))
+        hasValidChars(textAfter, this.assignedOptions.allowedChars)
       ) {
         this.showMentionList()
       } else {
@@ -113,14 +112,6 @@ class Mention {
     } else {
       this.hideMentionList()
     }
-  }
-
-  getAllowedCharsRegex(denotationChar) {
-    if (this.assignedOptions.allowedChars instanceof RegExp) {
-      return this.assignedOptions.allowedChars
-    }
-    return this.assignedOptions.allowedChars(denotationChar)
-
   }
 
   onTextChange (delta, oldDelta, source) {

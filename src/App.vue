@@ -2,7 +2,7 @@
   <div
     id="app"
   >
-    <base-mention />
+    <base-mention v-model="test" />
   </div>
 </template>
 
