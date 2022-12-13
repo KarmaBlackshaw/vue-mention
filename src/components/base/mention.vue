@@ -13,13 +13,11 @@
       <ul class="rounded shadow">
         <li
           v-for="(item, idx) in items"
-          :key="item.id"
+          :key="idx"
           class="p-3"
           @click="quillMention.insertItem({
-            denotationChar: '@',
             id: item.id,
-            index: idx,
-            value: item.name
+            text: item.name
           })"
         >
           {{ item.name }}
@@ -30,11 +28,7 @@
 </template>
 
 <script>
-// libs
 import QuillMention from '@/mention/quill.mention'
-
-// check
-// https://github.com/quill-mention/quill-mention/blob/master/src/quill.mention.js
 import { VueEditor } from 'vue2-editor'
 import _ from 'lodash'
 import { faker } from '@faker-js/faker'
@@ -82,7 +76,12 @@ export default {
         return this.value
       },
       set (val) {
-        return this.$emit('input', val)
+        const regex = /<span class="mention" data-id="(.+?)" data-text="(.+?)" data-denotation-char="@">.?<span contenteditable="false"><span class="mention-denotation-char">@<\/span>(.+?)<\/span>.?<\/span>/g
+
+        const newVal = val
+          .replace(regex, (_str, match) => `<span class="mention">@{${match}}</span>`)
+
+        return this.$emit('input', newVal)
       }
     },
 
@@ -100,19 +99,7 @@ export default {
 
     this.quillMention =   new QuillMention(this.quill, {
       editor: document.getElementById('editor'),
-      popper: document.getElementById('popper'),
-      source (searchTerm, renderList) {
-        renderList([
-          {
-            id: 1,
-            value: 'Fredrik Sundqvist'
-          },
-          {
-            id: 2,
-            value: 'Patrik Sjölin'
-          }
-        ])
-      }
+      popper: document.getElementById('popper')
     }, true)
   }
 }
@@ -121,7 +108,7 @@ export default {
 <style lang="scss" scoped>
 .mention-card {
   display: none;
-box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .mention-card[data-show] {

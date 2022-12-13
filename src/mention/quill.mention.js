@@ -16,22 +16,17 @@ class Mention {
 
     this.quill = quill
 
-    this.assignedOptions = {
-      source: null,
+    this.assignedOptions = Object.assign({
       mentionDenotationChars: ['@'],
       showDenotationChar: true,
       allowedChars: /^[a-zA-Z0-9_]*$/,
       minChars: 0,
       maxChars: 31,
-      offsetTop: 2,
-      offsetLeft: 0,
       blotName: 'mention',
       spaceAfterInsert: true,
       editor: null,
       popper: null
-    }
-
-    Object.assign(this.assignedOptions, options)
+    }, options)
 
     this.popper = createPopper(this.assignedOptions.editor, this.assignedOptions.popper)
 
@@ -46,12 +41,8 @@ class Mention {
   }
 
   insertItem(data) {
-    const render = data
-    if (render === null) {
+    if (data === null) {
       return
-    }
-    if (!this.assignedOptions.showDenotationChar) {
-      render.denotationChar = ''
     }
 
     const insertAtPos = this.mentionCharPos
@@ -62,7 +53,18 @@ class Mention {
       Quill.sources.USER
     )
 
-    this.quill.insertEmbed(insertAtPos, this.assignedOptions.blotName, render, Quill.sources.USER)
+    const renderData = {
+      ...data,
+      denotationChar: this.assignedOptions.showDenotationChar ? '@' : ''
+    }
+
+    this.quill.insertEmbed(
+      insertAtPos,
+      this.assignedOptions.blotName,
+      renderData,
+      Quill.sources.USER
+    )
+
     this.quill.insertText(insertAtPos + 1, ' ', Quill.sources.USER)
     this.quill.setSelection(insertAtPos + 2, Quill.sources.USER)
     this.hideMentionList()
