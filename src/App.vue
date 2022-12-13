@@ -19,15 +19,10 @@ export default {
       searchString: '',
       list: Array.from({ length: 10 }, () => {
         return {
-          name: faker.name.jobType(),
-          users: Array.from({ length: 5 }, () => {
-            return {
-              id: _.uniqueId(),
-              name: faker.name.fullName(),
-              position: faker.name.jobTitle(),
-              image: faker.image.people()
-            }
-          })
+          id: _.uniqueId(),
+          name: faker.name.fullName(),
+          position: faker.name.jobTitle(),
+          image: faker.image.people()
         }
       })
     }
