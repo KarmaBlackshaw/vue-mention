@@ -2,52 +2,27 @@
   <div
     id="app"
   >
-    <base-mention v-model="test" />
+    <div class="container mx-auto py-5">
+      <div class="w-full h-[100px] bg-white border mb-2">
+        {{ }}
+      </div>
+
+      <base-mention v-model="test" />
+    </div>
   </div>
 </template>
 
 <script>
-import { faker } from '@faker-js/faker'
-import _ from 'lodash'
+import users from '@/mixins/users'
 
 export default {
   name: 'App',
 
+  mixins: [users],
+
   data() {
     return {
-      test: '',
-      searchString: '',
-      list: Array.from({ length: 10 }, () => {
-        return {
-          id: _.uniqueId(),
-          name: faker.name.fullName(),
-          position: faker.name.jobTitle(),
-          image: faker.image.people()
-        }
-      })
-    }
-  },
-
-  computed: {
-    usersByJobType () {
-      if (_.isEmpty(this.searchString)) {
-        return this.list
-      }
-
-      const searchRegex = new RegExp(this.searchString.toLowerCase(), 'i')
-
-      return this.list
-        .map(job => {
-          return {
-            ...job,
-            users: job.users.filter(user => {
-              return user.name
-                .replace(/\s/g, '')
-                .match(searchRegex)
-            })
-          }
-        })
-        .filter(job => job.users.length)
+      test: ''
     }
   }
 }

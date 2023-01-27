@@ -7,14 +7,19 @@
         v-model="text"
         placeholder="Type a message..."
         :editor-options="assignedEditorOptions"
+        class="mb-2"
       />
+
+      <button class="h-[50px] w-full bg-blue-500 text-white">
+        Send
+      </button>
     </template>
 
     <template #popper>
       <div id="popper">
         <ul class="rounded shadow">
           <li
-            v-for="(item, idx) in items"
+            v-for="(item, idx) in $_users_list"
             :key="idx"
             class="p-3"
             @click="insertItem({
@@ -33,97 +38,25 @@
 <script>
 import { VueEditor, Quill } from 'vue2-editor'
 import _ from 'lodash'
-import { faker } from '@faker-js/faker'
 
-const Embed = Quill.import('blots/embed')
+import users from '@/mixins/users'
 
-class MentionBlot extends Embed {
-  static blotName = 'mention';
-  static tagName = 'span';
-  static className = 'mention';
-  static dataAttributes = ['id', 'text', 'denotationChar']
+import {
+  getMentionCharIndex,
+  hasValidChars,
+  hasValidMentionCharIndex,
+  getAsync,
+  MentionBlot
+} from '@/helpers/mention-helpers'
 
-  constructor(scroll, node) {
-    super(scroll, node)
-  }
-
-  static create(data) {
-    const node = super.create()
-
-    if (data.denotationChar) {
-      const denotationChar = document.createElement('span')
-      denotationChar.className = 'mention-denotation-char'
-      denotationChar.innerHTML = data.denotationChar
-      node.appendChild(denotationChar)
-    }
-
-    node.innerHTML += data.text
-    return MentionBlot.setDataValues(node, data)
-  }
-
-  static setDataValues(element, data) {
-    const domNode = element
-    MentionBlot.dataAttributes.forEach(key => {
-      domNode.dataset[key] = data[key]
-    })
-    return domNode
-  }
-
-  static value(domNode) {
-    return domNode.dataset
-  }
-}
-
-Quill.register(MentionBlot)
-
-function getMentionCharIndex(text, mentionDenotationChars) {
-  return mentionDenotationChars.reduce(
-    (prev, mentionChar) => {
-      const mentionCharIndex = text.lastIndexOf(mentionChar)
-
-      if (mentionCharIndex > prev.mentionCharIndex) {
-        return {
-          mentionChar,
-          mentionCharIndex
-        }
-      }
-      return {
-        mentionChar: prev.mentionChar,
-        mentionCharIndex: prev.mentionCharIndex
-      }
-    },
-    { mentionChar: null, mentionCharIndex: -1 }
-  )
-}
-
-function hasValidChars(text, allowedChars) {
-  return allowedChars.test(text)
-}
-
-function hasValidMentionCharIndex(mentionCharIndex, text) {
-  if (mentionCharIndex > -1) {
-    if (
-      !(mentionCharIndex === 0 || !!text[mentionCharIndex - 1].match(/\s/g))
-    ) {
-      return false
-    }
-    return true
-  }
-  return false
-}
-
-const getAsync = async (base, path) => {
-  while (!_.get(base, path)) {
-    await new Promise(resolve => requestAnimationFrame(resolve))
-  }
-
-  return _.get(base, path)
-}
+Quill.register(MentionBlot, true)
 
 export default {
   components: {
     VueEditor
   },
+
+  mixins: [users],
 
   props: {
     value: {
@@ -144,15 +77,7 @@ export default {
     return {
       popper: null,
       quill: null,
-      searchString: null,
-      items: Array.from({ length: 10 }, () => {
-        return {
-          id: _.uniqueId(),
-          name: faker.name.fullName(),
-          position: faker.name.jobTitle(),
-          image: faker.image.people()
-        }
-      })
+      searchString: null
     }
   },
 
@@ -223,11 +148,6 @@ export default {
   async mounted () {
     this.quill = await getAsync(this.$refs, ['editor', 'quill'])
     this.popper = this.$refs.popper.instance
-
-    // this.quillMention =   new QuillMention(this.quill, {
-    //   editor: document.getElementById('editor'),
-    //   popper: document.getElementById('popper')
-    // }, true)
 
     this.quill.on('text-change', this.onTextChange)
     this.quill.on('selection-change', this.onSelectionChange)

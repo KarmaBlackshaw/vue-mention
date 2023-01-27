@@ -69,10 +69,12 @@ export default {
     hide() {
       this.$emit('hide')
       this.popper.removeAttribute('data-show')
+      this.instance.update()
     },
     show() {
       this.$emit('show')
       this.popper.setAttribute('data-show', '')
+      this.instance.update()
     },
     toggle() {
       this.popper.hasAttribute('data-show') ? this.hide() : this.show()
