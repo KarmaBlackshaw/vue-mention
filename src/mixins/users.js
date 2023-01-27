@@ -23,6 +23,18 @@ export default {
   computed: {
     $_users_list() {
       return data.list
+    },
+
+    $_users_dictionary() {
+      const dictionary = {}
+
+      data.list.forEach(user => {
+        if (!dictionary[user.id]) {
+          dictionary[user.id] = user.name
+        }
+      })
+
+      return dictionary
     }
   }
 }

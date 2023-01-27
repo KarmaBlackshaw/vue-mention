@@ -7,21 +7,19 @@
         v-model="text"
         placeholder="Type a message..."
         :editor-options="assignedEditorOptions"
-        class="mb-2"
       />
-
-      <button class="h-[50px] w-full bg-blue-500 text-white">
-        Send
-      </button>
     </template>
 
     <template #popper>
-      <div id="popper">
-        <ul class="rounded shadow">
+      <div
+        id="popper"
+        class="bg-white shadow-lg rounded"
+      >
+        <ul class="">
           <li
             v-for="(item, idx) in $_users_list"
             :key="idx"
-            class="p-3"
+            class="p-3 cursor-pointer hover:bg-blue-500/10 transition"
             @click="insertItem({
               id: item.id,
               text: item.name
@@ -87,10 +85,12 @@ export default {
         return this.value
       },
       set (val) {
-        const regex = /<span class="mention" data-id="(.+?)" data-text="(.+?)" data-denotation-char="@">.?<span contenteditable="false"><span class="mention-denotation-char">@<\/span>(.+?)<\/span>.?<\/span>/g
+        const regex = /<span class="mention" data-id="(.+?)" data-text="(.+?)" data-denotation-char="@">.?<span contenteditable="false"><span>@<\/span>(.+?)<\/span>.?<\/span>/gi
 
-        const newVal = val
-          .replace(regex, (_str, match) => `<span class="mention">@{${match}}</span>`)
+        const newVal = val.replace(
+          regex,
+          (_str, match) => `<span class="mention">@{${match}}</span>`
+        )
 
         return this.$emit('input', newVal)
       }
@@ -238,6 +238,26 @@ export default {
     },
 
     showMentionList () {
+      const mentionCharPos = this.quill.getBounds(this.mentionCharPos)
+      const mentionCharPosAbsolute = {
+        left: mentionCharPos.left,
+        top: mentionCharPos.top * -1
+      }
+
+      this.popper.setOptions({
+        placement: 'top-start',
+        modifiers: [
+          {
+            name: 'offset',
+            options: {
+              offset: [mentionCharPosAbsolute.left, mentionCharPosAbsolute.top]
+            }
+          }
+        ]
+      })
+
+      this.popper.update()
+
       this.$refs.popper.show()
     },
 

@@ -61,6 +61,10 @@ export function getMentionCharIndex(text, mentionDenotationChars) {
   )
 }
 
+export function isMessageMention(txt) {
+  return /@{(.+?)}/g.test(txt)
+}
+
 export function hasValidChars(text, allowedChars) {
   return allowedChars.test(text)
 }
@@ -83,4 +87,22 @@ export async function getAsync (base, path)  {
   }
 
   return _.get(base, path)
+}
+
+export function renderMessage(txt, dictionary) {
+  if (!isMessageMention(txt)) {
+    return txt
+  }
+
+  const data = txt.replace(/<span class="mention">(@\{[^}]+\})<\/span>/, (match, value) => {
+    const key = value.replace(/@\{([^}]+)\}/, '$1')
+    if (key in dictionary) {
+      // eslint-disable-next-line no-irregular-whitespace
+      return `<span class="mention" data-id="${key}" data-text="${dictionary[key]}" data-denotation-char="@">﻿<span contenteditable="false"><span class="mention-denotation-char">@</span>${dictionary[key]}</span>﻿</span>`
+    }
+
+    return match
+  })
+
+  return data
 }
