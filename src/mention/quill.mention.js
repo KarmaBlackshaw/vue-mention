@@ -11,10 +11,6 @@ import { createPopper } from '@popperjs/core'
 
 class Mention {
   constructor(quill, options) {
-    this.mentionCharPos = null
-    this.cursorPos = null
-
-    this.quill = quill
 
     this.assignedOptions = Object.assign({
       mentionDenotationChars: ['@'],
@@ -28,6 +24,9 @@ class Mention {
       popper: null
     }, options)
 
+    this.mentionCharPos = null
+    this.cursorPos = null
+    this.quill = quill
     this.popper = createPopper(this.assignedOptions.editor, this.assignedOptions.popper)
 
     quill.on('text-change', this.onTextChange.bind(this))

@@ -1,39 +1,118 @@
 <template>
-  <div>
-    {{ text }}
-    <vue-editor
-      id="editor"
-      ref="mention-area"
-      v-model="text"
-      placeholder="Type a message..."
-      :editor-options="editorOptions"
-    />
+  <BasePopper ref="popper">
+    <template #base>
+      <vue-editor
+        id="editor"
+        ref="editor"
+        v-model="text"
+        placeholder="Type a message..."
+        :editor-options="assignedEditorOptions"
+      />
+    </template>
 
-    <div id="popper">
-      <ul class="rounded shadow">
-        <li
-          v-for="(item, idx) in items"
-          :key="idx"
-          class="p-3"
-          @click="quillMention.insertItem({
-            id: item.id,
-            text: item.name
-          })"
-        >
-          {{ item.name }}
-        </li>
-      </ul>
-    </div>
-  </div>
+    <template #popper>
+      <div id="popper">
+        <ul class="rounded shadow">
+          <li
+            v-for="(item, idx) in items"
+            :key="idx"
+            class="p-3"
+            @click="insertItem({
+              id: item.id,
+              text: item.name
+            })"
+          >
+            {{ item.name }}
+          </li>
+        </ul>
+      </div>
+    </template>
+  </BasePopper>
 </template>
 
 <script>
-import QuillMention from '@/mention/quill.mention'
-import { VueEditor } from 'vue2-editor'
+import { VueEditor, Quill } from 'vue2-editor'
 import _ from 'lodash'
 import { faker } from '@faker-js/faker'
 
-const getElement = async (base, path) => {
+const Embed = Quill.import('blots/embed')
+
+class MentionBlot extends Embed {
+  static blotName = 'mention';
+  static tagName = 'span';
+  static className = 'mention';
+  static dataAttributes = ['id', 'text', 'denotationChar']
+
+  constructor(scroll, node) {
+    super(scroll, node)
+  }
+
+  static create(data) {
+    const node = super.create()
+
+    if (data.denotationChar) {
+      const denotationChar = document.createElement('span')
+      denotationChar.className = 'mention-denotation-char'
+      denotationChar.innerHTML = data.denotationChar
+      node.appendChild(denotationChar)
+    }
+
+    node.innerHTML += data.text
+    return MentionBlot.setDataValues(node, data)
+  }
+
+  static setDataValues(element, data) {
+    const domNode = element
+    MentionBlot.dataAttributes.forEach(key => {
+      domNode.dataset[key] = data[key]
+    })
+    return domNode
+  }
+
+  static value(domNode) {
+    return domNode.dataset
+  }
+}
+
+Quill.register(MentionBlot)
+
+function getMentionCharIndex(text, mentionDenotationChars) {
+  return mentionDenotationChars.reduce(
+    (prev, mentionChar) => {
+      const mentionCharIndex = text.lastIndexOf(mentionChar)
+
+      if (mentionCharIndex > prev.mentionCharIndex) {
+        return {
+          mentionChar,
+          mentionCharIndex
+        }
+      }
+      return {
+        mentionChar: prev.mentionChar,
+        mentionCharIndex: prev.mentionCharIndex
+      }
+    },
+    { mentionChar: null, mentionCharIndex: -1 }
+  )
+}
+
+function hasValidChars(text, allowedChars) {
+  return allowedChars.test(text)
+}
+
+function hasValidMentionCharIndex(mentionCharIndex, text) {
+  if (mentionCharIndex > -1) {
+    if (
+      !(mentionCharIndex === 0 || !!text[mentionCharIndex - 1].match(/\s/g))
+    ) {
+      return false
+    }
+    return true
+  }
+  return false
+}
+
+const getAsync = async (base, path) => {
   while (!_.get(base, path)) {
     await new Promise(resolve => requestAnimationFrame(resolve))
   }
@@ -50,6 +129,14 @@ export default {
     value: {
       type: String,
       default: ''
+    },
+    options: {
+      type: Object,
+      default: () => ({})
+    },
+    editorOptions: {
+      type: Object,
+      default: () => ({})
     }
   },
 
@@ -57,7 +144,6 @@ export default {
     return {
       popper: null,
       quill: null,
-      quillMention: null,
       searchString: null,
       items: Array.from({ length: 10 }, () => {
         return {
@@ -85,34 +171,177 @@ export default {
       }
     },
 
-    editorOptions () {
-      return {
+    assignedEditorOptions() {
+      return _.defaultsDeep(this.editorOptions, {
         modules: {
-          toolbar: false
+          toolbar: false,
+          keyboard: {
+            bindings: {
+              shift_enter: {
+                key: 13,
+                shiftKey: true,
+                handler: range => {
+                  /**
+                   * Insert new line
+                   */
+                  this.quill.editor.insertText(range.index, '\n')
+
+                  /**
+                   * Move cursor at the end
+                   */
+                  this.quill.setSelection(
+                    this.quill.getSelection().index + 1,
+                    0
+                  )
+                }
+              },
+              enter: {
+                key: 13,
+                handler: () => {
+                  return
+                }
+              }
+            }
+          }
         }
-      }
+      })
+    },
+
+    assignedOptions() {
+      return _.defaultsDeep(this.options, {
+        mentionDenotationChars: ['@'],
+        showDenotationChar: true,
+        allowedChars: /^[a-zA-Z0-9_]*$/,
+        minChars: 0,
+        maxChars: 31,
+        blotName: 'mention',
+        spaceAfterInsert: true
+      })
     }
   },
 
   async mounted () {
-    this.quill = await getElement(this.$refs, ['mention-area', 'quill'])
+    this.quill = await getAsync(this.$refs, ['editor', 'quill'])
+    this.popper = this.$refs.popper.instance
 
-    this.quillMention =   new QuillMention(this.quill, {
-      editor: document.getElementById('editor'),
-      popper: document.getElementById('popper')
-    }, true)
+    // this.quillMention =   new QuillMention(this.quill, {
+    //   editor: document.getElementById('editor'),
+    //   popper: document.getElementById('popper')
+    // }, true)
+
+    this.quill.on('text-change', this.onTextChange)
+    this.quill.on('selection-change', this.onSelectionChange)
+    this.quill.container.addEventListener('paste', () => {
+      setTimeout(() => {
+        const range = this.quill.getSelection()
+        this.onSelectionChange(range)
+      })
+    })
+  },
+
+  methods: {
+
+    onTextChange (delta, oldDelta, source) {
+      if (source === 'user') {
+        this.onInput()
+      }
+    },
+
+    onSelectionChange (range) {
+      if (range && range.length === 0) {
+        this.onInput()
+      } else {
+        this.hideMentionList()
+      }
+    },
+
+    onInput() {
+      const range = this.quill.getSelection()
+      if (range == null) return
+
+      this.cursorPos = range.index
+      const textBeforeCursor = this.getTextBeforeCursor()
+      const { mentionChar, mentionCharIndex } = getMentionCharIndex(
+        textBeforeCursor,
+        this.assignedOptions.mentionDenotationChars
+      )
+
+      if (hasValidMentionCharIndex(mentionCharIndex, textBeforeCursor)) {
+        this.mentionCharPos = this.cursorPos - (textBeforeCursor.length - mentionCharIndex)
+        this.searchString = textBeforeCursor.substring(mentionCharIndex + mentionChar.length)
+
+        if (
+          this.searchString.length >= this.assignedOptions.minChars &&
+          hasValidChars(this.searchString, this.assignedOptions.allowedChars)
+        ) {
+          this.showMentionList()
+        } else {
+          this.hideMentionList()
+        }
+      } else {
+        this.hideMentionList()
+      }
+    },
+
+    insertItem(data) {
+      if (data === null) {
+        return
+      }
+
+      const insertAtPos = this.mentionCharPos
+
+      this.quill.deleteText(
+        this.mentionCharPos,
+        this.cursorPos - this.mentionCharPos,
+        Quill.sources.USER
+      )
+
+      const renderData = {
+        ...data,
+        denotationChar: this.assignedOptions.showDenotationChar ? '@' : ''
+      }
+
+      this.quill.insertEmbed(
+        insertAtPos,
+        this.assignedOptions.blotName,
+        renderData,
+        Quill.sources.USER
+      )
+
+      this.quill.insertText(insertAtPos + 1, ' ', Quill.sources.USER)
+      this.quill.setSelection(insertAtPos + 2, Quill.sources.USER)
+      this.hideMentionList()
+    },
+
+    hideMentionList() {
+      this.$refs.popper.hide()
+    },
+
+    showMentionList () {
+      this.$refs.popper.show()
+    },
+
+    getTextBeforeCursor() {
+      const startPos = Math.max(0, this.cursorPos - this.assignedOptions.maxChars)
+      const textBeforeCursorPos = this.quill.getText(
+        startPos,
+        this.cursorPos - startPos
+      )
+      return textBeforeCursorPos
+    }
   }
 }
 </script>
 
-<style lang="scss" scoped>
-.mention-card {
-  display: none;
-  box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.mention-card[data-show] {
-display: block;
+<style lang="scss">
+.mention {
+  height: 24px;
+  width: 65px;
+  border-radius: 6px;
+  background-color: #d3e1eb;
+  padding: 3px 0;
+  margin-right: 2px;
+  user-select: all;
 }
 
 </style>

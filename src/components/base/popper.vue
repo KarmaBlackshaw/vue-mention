@@ -1,5 +1,23 @@
+<!--
+Usage:
+
+import BasePopper from '@/components/shared/BasePopper'
+
+<BasePopper>
+  <template #base="{ show, hide, toggle, update }">
+
+  </template>
+
+  <template #popper>
+
+  </template>
+</BasePopper>
+-->
+
 <template>
-  <div class="popper-container">
+  <div
+    class="popper-container"
+  >
     <div ref="base">
       <slot
         v-bind="{ show, hide, toggle }"
@@ -16,17 +34,11 @@
 </template>
 
 <script>
-
+// libs
 import { createPopper } from '@popperjs/core'
 import _ from 'lodash'
 
-const getAsync = async (base, path) => {
-  while (!_.get(base, path)) {
-    await new Promise(resolve => requestAnimationFrame(resolve))
-  }
-
-  return _.get(base, path)
-}
+// directives
 
 export default {
   props: {
@@ -47,28 +59,23 @@ export default {
       })
     }
   },
-  async mounted () {
-    const [base, popper] = await Promise.all([
-      getAsync(this.$refs, ['base']),
-      getAsync(this.$refs, ['popper'])
-    ])
-
-    this.base = base
-    this.popper = popper
+  mounted() {
+    this.base = this.$refs.base
+    this.popper = this.$refs.popper
 
     this.instance = createPopper(this.base, this.popper, this.assignedOptions)
   },
   methods: {
     hide() {
+      this.$emit('hide')
       this.popper.removeAttribute('data-show')
     },
     show() {
+      this.$emit('show')
       this.popper.setAttribute('data-show', '')
     },
-    toggle () {
-      this.popper.hasAttribute('data-show')
-        ? this.hide()
-        : this.show()
+    toggle() {
+      this.popper.hasAttribute('data-show') ? this.hide() : this.show()
     }
   }
 }
@@ -77,9 +84,10 @@ export default {
 <style lang="scss" scoped>
 .popper {
   display: none;
+  z-index: 99;
 }
 
 .popper[data-show] {
-  display: inline;
+  display: block;
 }
 </style>
